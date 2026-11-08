@@ -12,15 +12,36 @@
     <!-- Style Khusus Cetak Kartu Siswa & Spinner Loading -->
     <style>
         @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff; }
+            body > *:not(#print-area) { 
+                display: none !important; 
+            }
+            #print-area { 
+                display: block !important; 
+                visibility: visible !important; 
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important; 
+                width: 100% !important; 
+                background: #fff !important; 
+            }
+            #print-area * { 
+                visibility: visible !important; 
+            }
             .kartu-siswa {
-                width: 5cm !important; min-width: 5cm !important; max-width: 5cm !important;
-                height: auto !important; page-break-inside: avoid; break-inside: avoid;
-                margin-bottom: 0.4cm; border: 1px solid #000 !important; padding: 0.2cm !important;
-                box-sizing: border-box !important; background-color: #ffffff !important;
-                -webkit-print-color-adjust: exact; print-color-adjust: exact;
+                width: 5.5cm !important; 
+                min-width: 5.5cm !important; 
+                max-width: 5.5cm !important;
+                height: auto !important; 
+                page-break-inside: avoid; 
+                break-inside: avoid;
+                margin: 0.2cm !important; 
+                border: 1px solid #000 !important; 
+                padding: 0.25cm !important;
+                box-sizing: border-box !important; 
+                background-color: #ffffff !important;
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+                float: left;
             }
             .no-print { display: none !important; }
         }
@@ -345,7 +366,7 @@
     </div>
 
     <!-- AREA CETAK KARTU SISWA -->
-    <div id="print-area" class="hidden"></div>
+    <div id="print-area"></div>
 
     <!-- SCRIPT UTAMA -->
     <script>
@@ -945,7 +966,7 @@
                 const tugB = tugasKelas.find(x => x.siswaId == b.id);
 
                 const getScore = (tug, abs) => {
-                    const hasTug = tug && tug.fileUrl;
+                    const hasTug = tug && (tug.fileUrl || tug.linkTugas);
                     const isGraded = hasTug && tug.nilai !== undefined && tug.nilai !== null && String(tug.nilai).trim() !== "";
                     const hasAbs = abs && (abs.status === 'Hadir' || abs.status === 'Terlambat');
 
@@ -974,6 +995,8 @@
                             warnaStatus = statusKehadiran === 'Hadir' ? 'text-green-600' : 'text-amber-600';
                         }
 
+                        const adaTugas = tug && (tug.fileUrl || tug.linkTugas);
+
                         return `
                             <div class="p-3 bg-white border rounded-lg text-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
                                 <div>
@@ -981,9 +1004,12 @@
                                     <div class="text-gray-500 mt-0.5">Kehadiran: <span class="font-bold ${warnaStatus}">${statusKehadiran}</span></div>
                                 </div>
                                 <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                                    <div class="text-right">
-                                        ${tug && tug.fileUrl ? `
-                                            <div>Tugas: <button onclick="bukaViewer('${tug.fileUrl}', 'Tugas ${s.nama}')" class="text-blue-600 underline font-bold">📄 Lihat Tugas</button></div>
+                                    <div class="text-right space-y-1">
+                                        ${adaTugas ? `
+                                            <div class="flex gap-2 justify-end items-center flex-wrap">
+                                                ${tug.fileUrl ? `<button onclick="bukaViewer('${tug.fileUrl}', 'Tugas ${s.nama}')" class="text-blue-600 underline font-bold">📄 lihat File</button>` : ''}
+                                                ${tug.linkTugas ? `<a href="${tug.linkTugas}" target="_blank" class="text-indigo-600 underline font-bold">🔗 Buka Link</a>` : ''}
+                                            </div>
                                             <div class="text-[10px]">Nilai: <b>${tug.nilai !== undefined && tug.nilai !== null && String(tug.nilai).trim() !== "" ? tug.nilai : 'Belum'}</b> | Komentar: <em>${tug.komentar || '-'}</em></div>
                                         ` : '<span class="text-gray-400">Belum Mengirim Tugas</span>'}
                                     </div>
@@ -1019,6 +1045,7 @@
                     namaSiswa: siswaObj ? siswaObj.nama : 'Siswa',
                     kelas: siswaObj ? siswaObj.kelas : '',
                     fileUrl: '',
+                    linkTugas: '',
                     nilai: Number(nilaiInput),
                     komentar: komentarInput || '',
                     remedial: false
@@ -1065,6 +1092,8 @@
                     "Kelas": s.kelas,
                     "Kehadiran": abs ? abs.status : "Alpa",
                     "Waktu Akses": abs ? abs.waktu : "-",
+                    "Link Tugas": tug && tug.linkTugas ? tug.linkTugas : "-",
+                    "File Tugas": tug && tug.fileUrl ? tug.fileUrl : "-",
                     "Nilai Tugas": tug && tug.nilai !== undefined && tug.nilai !== null ? tug.nilai : "Belum Dinilai",
                     "Komentar Guru": tug ? (tug.komentar || "-") : "-"
                 };
@@ -1094,6 +1123,7 @@
             listJadwalSiswa.innerHTML = jadwalKelas.length === 0 ? '<p class="text-xs text-gray-400">Belum ada materi atau tugas untuk kelas Anda.</p>' :
                 jadwalKelas.map(j => {
                     const tugasSiswa = globalDbData.tugas.find(t => t.jadwalId == j.id && t.siswaId == currentUser.id);
+                    const sudahKirim = tugasSiswa && (tugasSiswa.fileUrl || tugasSiswa.linkTugas);
                     
                     const waktuMulaiJadwal = new Date(`${j.tanggal}T${j.jamMulai || '00:00'}`);
                     const belumMulai = now < waktuMulaiJadwal;
@@ -1119,22 +1149,37 @@
                                 ${j.fileUrl ? `<div><button onclick="bukaMateriSiswa(${j.id}, '${j.fileUrl}', '${j.topik}')" class="bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg shadow">📄 Baca/Lihat Materi (PDF/Word/Gambar)</button></div>` : `<div><button onclick="catatAksesMateriTanpaFile(${j.id})" class="bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg shadow">👁️ Akses Materi</button></div>`}
 
                                 <div class="pt-2 border-t flex flex-wrap gap-2 items-center">
-                                    <div class="w-full mt-1 space-y-1">
-                                        <label class="font-bold text-gray-700">Kirim Tugas (PDF, Word, Gambar - Otomatis Kompres):</label>
+                                    <div class="w-full mt-1 space-y-2">
+                                        <label class="font-bold text-gray-700">Kirim Tugas (Pilih Salah Satu / Keduanya):</label>
                                         ${j.hentikanGlobal ? `
                                             <div class="p-2 bg-red-50 border border-red-200 text-red-600 font-bold rounded">
                                                 ⛔ Pengiriman tugas untuk materi ini telah dihentikan oleh Guru.
                                             </div>
                                         ` : `
-                                            ${tugasSiswa && tugasSiswa.fileUrl && !tugasSiswa.remedial ? `
-                                                <div class="p-2 bg-green-50 border border-green-200 text-green-700 font-bold rounded">
-                                                    ✅ Tugas sudah dikirim. Anda hanya dapat mengirim 1 kali, kecuali guru memberikan status remedial.
+                                            ${sudahKirim && !tugasSiswa.remedial ? `
+                                                <div class="p-2.5 bg-green-50 border border-green-200 text-green-700 rounded space-y-1">
+                                                    <div class="font-bold">✅ Tugas sudah dikirim.</div>
+                                                    ${tugasSiswa.fileUrl ? `<div class="truncate">📁 File: <button onclick="bukaViewer('${tugasSiswa.fileUrl}', 'Tugas Anda')" class="underline font-semibold text-blue-600">Lihat File Upload</button></div>` : ''}
+                                                    ${tugasSiswa.linkTugas ? `<div class="truncate">🔗 Link: <a href="${tugasSiswa.linkTugas}" target="_blank" class="underline font-semibold text-indigo-600">${tugasSiswa.linkTugas}</a></div>` : ''}
+                                                    <div class="pt-1 flex gap-2">
+                                                        <button onclick="handleHapusTugasSiswa(${j.id})" class="text-[10px] bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded font-bold">🗑️ Batal Kirim / Edit Tugas</button>
+                                                    </div>
                                                 </div>
                                             ` : `
-                                                <div class="space-y-2">
-                                                    ${tugasSiswa && tugasSiswa.remedial ? '<div class="text-red-600 font-bold">⚠️ Anda dalam status Remedial. Silakan upload ulang tugas Anda.</div>' : ''}
-                                                    <input type="file" id="input-file-tugas-${j.id}" accept=".pdf, .doc, .docx, .jpg, .jpeg, .png" class="w-full text-xs border p-2 rounded bg-white">
-                                                    <button onclick="handleKirimTugas(${j.id})" class="w-full bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-xs shadow">📤 Upload Tugas</button>
+                                                <div class="space-y-2 bg-white p-3 rounded-lg border">
+                                                    ${tugasSiswa && tugasSiswa.remedial ? '<div class="text-red-600 font-bold text-xs">⚠️ Anda dalam status Remedial. Silakan upload ulang tugas Anda.</div>' : ''}
+                                                    
+                                                    <div>
+                                                        <label class="block text-[11px] text-gray-600 font-semibold mb-1">1. Upload File (PDF, Word, Gambar - Otomatis Kompres):</label>
+                                                        <input type="file" id="input-file-tugas-${j.id}" accept=".pdf, .doc, .docx, .jpg, .jpeg, .png" class="w-full text-xs border p-1.5 rounded bg-gray-50">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-[11px] text-gray-600 font-semibold mb-1">2. ATAU / DAN Link Tugas (Google Drive / Canva / YouTube dll):</label>
+                                                        <input type="url" id="input-link-tugas-${j.id}" placeholder="https://drive.google.com/..." class="w-full text-xs border p-2 rounded bg-gray-50">
+                                                    </div>
+
+                                                    <button onclick="handleKirimTugas(${j.id})" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-xs shadow transition">📤 Submit Tugas</button>
                                                 </div>
                                             `}
                                         `}
@@ -1162,8 +1207,12 @@
                     ${riwayatTugas.map(t => {
                         const mat = globalDbData.jadwal.find(j => j.id == t.jadwalId);
                         return `
-                            <div class="p-3 bg-white border rounded text-xs space-y-1">
-                                <div>Tugas <b>${mat ? mat.topik : 'Materi'}</b></div>
+                            <div class="p-3 bg-white border rounded text-xs space-y-1 shadow-sm">
+                                <div class="font-bold text-gray-800">Tugas: ${mat ? mat.topik : 'Materi'}</div>
+                                <div class="text-gray-600">
+                                    ${t.fileUrl ? `<span class="mr-2">📄 File Dikirim</span>` : ''}
+                                    ${t.linkTugas ? `<span>🔗 Link Dikirim</span>` : ''}
+                                </div>
                                 <div>Status: <span class="font-bold text-green-600">Terkirim</span> | Nilai: <b class="text-blue-600">${t.nilai !== undefined && t.nilai !== null ? t.nilai : 'Belum Dinilai'}</b></div>
                                 ${t.komentar ? `<div>Komentar Guru: <em>${t.komentar}</em></div>` : ''}
                                 ${t.remedial ? `<div class="text-red-600 font-bold">⚠️ Catatan: Anda diminta melakukan Remedial.</div>` : ''}
@@ -1252,6 +1301,24 @@
             setupSiswaDashboardData();
         }
 
+        async function handleHapusTugasSiswa(jadwalId) {
+            if (!confirm('Apakah anda yakin ingin membatalkan pengiriman tugas ini untuk mengupload ulang?')) return;
+            showLoading("Memproses pembatalan tugas...");
+            await fetchAllDatabases(true);
+            const idx = globalDbData.tugas.findIndex(t => t.jadwalId == jadwalId && t.siswaId == currentUser.id);
+            if (idx !== -1) {
+                globalDbData.tugas.splice(idx, 1);
+                const success = await updateGistData(GIST_ID_TUGAS, 'db_tugas.json', globalDbData.tugas);
+                hideLoading();
+                if (success) {
+                    alert('Pengiriman tugas dibatalkan. Anda dapat mengupload ulang tugas.');
+                    setupSiswaDashboardData();
+                }
+            } else {
+                hideLoading();
+            }
+        }
+
         async function handleKirimTugas(jadwalId) {
             const jadwal = globalDbData.jadwal.find(j => j.id == jadwalId);
             if (jadwal) {
@@ -1268,76 +1335,100 @@
             }
 
             const fileInput = document.getElementById(`input-file-tugas-${jadwalId}`);
-            if (fileInput.files.length === 0) { alert('Pilih file tugas terlebih dahulu!'); return; }
+            const linkInput = document.getElementById(`input-link-tugas-${jadwalId}`);
+            const linkVal = linkInput ? linkInput.value.trim() : "";
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+
+            if (!hasFile && !linkVal) {
+                alert('Silakan sertakan minimal salah satu: File Tugas atau Link Tugas!');
+                return;
+            }
             
             showLoading("Mengambil database terbaru server...");
-            
             await fetchAllDatabases(true);
 
             if (!globalDbData.tugas) globalDbData.tugas = [];
 
             let existingIndex = globalDbData.tugas.findIndex(t => t.jadwalId == jadwalId && t.siswaId == currentUser.id);
 
-            if (existingIndex !== -1 && globalDbData.tugas[existingIndex].fileUrl && !globalDbData.tugas[existingIndex].remedial) {
+            if (existingIndex !== -1 && (globalDbData.tugas[existingIndex].fileUrl || globalDbData.tugas[existingIndex].linkTugas) && !globalDbData.tugas[existingIndex].remedial) {
                 hideLoading();
-                alert('Anda sudah mengirimkan tugas. Pengiriman hanya diizinkan 1 kali kecuali guru memberikan status remedial.');
+                alert('Anda sudah mengirimkan tugas. Batalkan tugas terlebih dahulu jika ingin mengedit.');
                 return;
             }
 
-            showLoading("Mengompres & Mengunggah tugas...");
-            const compressedFile = await processAndCompressFile(fileInput);
             await catatOtomatisAbsen(jadwalId);
 
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const base64Data = e.target.result.split(',')[1];
-                const payload = {
-                    action: "uploadFile",
-                    base64Data: base64Data,
-                    fileName: compressedFile.name,
-                    mimeType: compressedFile.type,
-                    folderType: "tugas",
-                    subFolderNama: currentUser.kelas
-                };
-                try {
-                    const response = await fetch(GAS_WEB_APP_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify(payload)
+            const saveRecordTugas = async (uploadedFileUrl, inputLink) => {
+                await fetchAllDatabases(true);
+                existingIndex = globalDbData.tugas.findIndex(t => t.jadwalId == jadwalId && t.siswaId == currentUser.id);
+
+                if (existingIndex !== -1) {
+                    if (uploadedFileUrl) globalDbData.tugas[existingIndex].fileUrl = uploadedFileUrl;
+                    if (inputLink) globalDbData.tugas[existingIndex].linkTugas = inputLink;
+                    globalDbData.tugas[existingIndex].waktu = new Date().toLocaleString();
+                    globalDbData.tugas[existingIndex].remedial = false;
+                } else {
+                    globalDbData.tugas.push({
+                        id: generateUniqueId(),
+                        jadwalId,
+                        siswaId: currentUser.id,
+                        namaSiswa: currentUser.nama,
+                        kelas: currentUser.kelas,
+                        fileUrl: uploadedFileUrl || "",
+                        linkTugas: inputLink || "",
+                        waktu: new Date().toLocaleString(),
+                        remedial: false
                     });
-                    const resJson = await response.json();
-                    
-                    if (resJson.status === "success") {
-                        await fetchAllDatabases(true);
-                        existingIndex = globalDbData.tugas.findIndex(t => t.jadwalId == jadwalId && t.siswaId == currentUser.id);
+                }
 
-                        if (existingIndex !== -1) {
-                            globalDbData.tugas[existingIndex].fileUrl = resJson.fileUrl;
-                            globalDbData.tugas[existingIndex].waktu = new Date().toLocaleString();
-                            globalDbData.tugas[existingIndex].remedial = false;
-                        } else {
-                            globalDbData.tugas.push({
-                                id: generateUniqueId(),
-                                jadwalId,
-                                siswaId: currentUser.id,
-                                namaSiswa: currentUser.nama,
-                                kelas: currentUser.kelas,
-                                fileUrl: resJson.fileUrl,
-                                waktu: new Date().toLocaleString(),
-                                remedial: false
-                            });
-                        }
-
-                        const success = await updateGistData(GIST_ID_TUGAS, 'db_tugas.json', globalDbData.tugas);
-                        hideLoading();
-                        if (success) { alert('Tugas berhasil dikirim ke Google Drive!'); setupSiswaDashboardData(); }
-                    } else { hideLoading(); alert('Gagal upload tugas: ' + resJson.message); }
-                } catch (err) {
-                    hideLoading();
-                    alert('Error GAS: ' + err.message);
+                const success = await updateGistData(GIST_ID_TUGAS, 'db_tugas.json', globalDbData.tugas);
+                hideLoading();
+                if (success) { 
+                    alert('Tugas berhasil dikirim!'); 
+                    setupSiswaDashboardData(); 
                 }
             };
-            reader.readAsDataURL(compressedFile);
+
+            if (hasFile) {
+                showLoading("Mengompres & Mengunggah tugas...");
+                const compressedFile = await processAndCompressFile(fileInput);
+
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64Data = e.target.result.split(',')[1];
+                    const payload = {
+                        action: "uploadFile",
+                        base64Data: base64Data,
+                        fileName: compressedFile.name,
+                        mimeType: compressedFile.type,
+                        folderType: "tugas",
+                        subFolderNama: currentUser.kelas
+                    };
+                    try {
+                        const response = await fetch(GAS_WEB_APP_URL, {
+                            method: "POST",
+                            headers: { "Content-Type": "text/plain;charset=utf-8" },
+                            body: JSON.stringify(payload)
+                        });
+                        const resJson = await response.json();
+                        
+                        if (resJson.status === "success") {
+                            await saveRecordTugas(resJson.fileUrl, linkVal);
+                        } else { 
+                            hideLoading(); 
+                            alert('Gagal upload file tugas: ' + resJson.message); 
+                        }
+                    } catch (err) {
+                        hideLoading();
+                        alert('Error GAS: ' + err.message);
+                    }
+                };
+                reader.readAsDataURL(compressedFile);
+            } else {
+                showLoading("Menyimpan tugas...");
+                await saveRecordTugas("", linkVal);
+            }
         }
 
         function bukaViewer(fileUrl, judul) {
@@ -1757,7 +1848,7 @@
 
         function generateKartuHtml(listSiswa) {
             return listSiswa.map(s => `
-                <div class="kartu-siswa" style="display:inline-block; width:5cm; border:1px solid #000; padding:10px; margin:5px; font-family:sans-serif; background:#fff; box-sizing:border-box;">
+                <div class="kartu-siswa">
                     <div style="text-align:center; border-bottom:1px solid #000; padding-bottom:4px; margin-bottom:6px;">
                         <b style="font-size:10px; display:block;">SMA NEGERI 1 TANJUNGSARI</b>
                         <span style="font-size:8px;">KARTU AKUN SISWA LMS</span>
@@ -1778,7 +1869,7 @@
             const siswaList = globalDbData.users?.siswa || [];
             if (siswaList.length === 0) { alert('Belum ada data siswa.'); return; }
             const printArea = document.getElementById('print-area');
-            printArea.innerHTML = `<div style="display:flex; flex-wrap:wrap; gap:5px;">${generateKartuHtml(siswaList)}</div>`;
+            printArea.innerHTML = generateKartuHtml(siswaList);
             window.print();
         }
 
@@ -1788,7 +1879,7 @@
             const siswaList = (globalDbData.users?.siswa || []).filter(s => s.kelas === kelasVal);
             if (siswaList.length === 0) { alert(`Tidak ada siswa di kelas ${kelasVal}.`); return; }
             const printArea = document.getElementById('print-area');
-            printArea.innerHTML = `<div style="display:flex; flex-wrap:wrap; gap:5px;">${generateKartuHtml(siswaList)}</div>`;
+            printArea.innerHTML = generateKartuHtml(siswaList);
             window.print();
         }
 
