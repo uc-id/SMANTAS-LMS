@@ -466,16 +466,28 @@
             localStorage.setItem('lms_cache_db', JSON.stringify(globalDbData));
         }
 
+        async function fetchSafeJson(url) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                const text = await res.text();
+                return JSON.parse(text);
+            } catch (err) {
+                console.warn(`Gagal memuat URL: ${url}`, err);
+                return null;
+            }
+        }
+
         async function fetchAllDatabases(forceRefresh = true) {
             try {
                 const cacheBuster = forceRefresh ? '?_t=' + Date.now() : '';
                 
                 const [resUsers, resSettings, resJadwal, resAbsen, resTugas] = await Promise.all([
-                    fetch(DB_URL_USERS + cacheBuster).then(r => r.json()).catch(() => null),
-                    fetch(DB_URL_SETTINGS + cacheBuster).then(r => r.json()).catch(() => null),
-                    fetch(DB_URL_JADWAL + cacheBuster).then(r => r.json()).catch(() => null),
-                    fetch(DB_URL_ABSEN + cacheBuster).then(r => r.json()).catch(() => null),
-                    fetch(DB_URL_TUGAS + cacheBuster).then(r => r.json()).catch(() => null)
+                    fetchSafeJson(DB_URL_USERS + cacheBuster),
+                    fetchSafeJson(DB_URL_SETTINGS + cacheBuster),
+                    fetchSafeJson(DB_URL_JADWAL + cacheBuster),
+                    fetchSafeJson(DB_URL_ABSEN + cacheBuster),
+                    fetchSafeJson(DB_URL_TUGAS + cacheBuster)
                 ]);
 
                 if (resUsers) globalDbData.users = resUsers;
@@ -1165,11 +1177,9 @@
         async function catatOtomatisAbsen(jadwalId) {
             if (!currentUser || currentUser.role !== 'siswa') return;
             
-            // Cek data absensi eksisting di cache lokal
             let existing = globalDbData.absen.find(a => a.jadwalId == jadwalId && a.siswaId == currentUser.id);
             const now = new Date();
 
-            // COOLDOWN SYSTEM: Jika siswa sudah absen dalam 5 menit terakhir, jangan kirim request Gist berlebih untuk hemat Rate Limit
             if (existing && existing.waktu) {
                 const lastAbsenTime = new Date(existing.waktu).getTime();
                 if (!isNaN(lastAbsenTime) && (now.getTime() - lastAbsenTime < 5 * 60 * 1000)) {
@@ -1209,10 +1219,7 @@
                 });
             }
 
-            // Simpan ke cache lokal agar langsung responsif
             saveCacheData();
-
-            // Kirim ke Gist secara senyap di background tanpa fetch database massal
             updateGistDataSilent(GIST_ID_ABSEN, 'db_absen.json', globalDbData.absen);
         }
 
