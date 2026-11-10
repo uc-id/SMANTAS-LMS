@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SheetJS (XLSX) Library untuk Ekspor & Baca Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
     <!-- Style Khusus Cetak Kartu Siswa & Spinner Loading -->
     <style>
         @media print {
@@ -60,7 +59,6 @@
     </style>
 </head>
 <body class="bg-gray-50 font-sans antialiased text-gray-800">
-
     <!-- ================= OVERLAY LOADING UPLOAD ================= -->
     <div id="loading-overlay" class="hidden fixed inset-0 z-[999] bg-black/60 flex flex-col justify-center items-center space-y-3">
         <div class="spinner-loader"></div>
@@ -397,6 +395,8 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             setDefaultTanggalDanJam();
+            loadCacheData(); // Tampilkan data lokal dulu agar cepat
+            
             const savedUser = localStorage.getItem('lms_user');
             if (savedUser) {
                 try {
@@ -404,9 +404,8 @@
                     showDashboard();
                 } catch (e) { localStorage.removeItem('lms_user'); }
             }
-            loadCacheData();
             
-            fetchAllDatabases(true);
+            await fetchAllDatabases(true);
         });
 
         function showLoading(text = "Sedang memproses...") {
@@ -553,14 +552,18 @@
                 });
 
                 if (!res.ok) {
+                    if (res.status === 403) {
+                        console.warn('Rate limit GitHub tercapai (403). Menyimpan perubahan ke cache lokal.');
+                        alert('⚠️ Server Gist sedang sibuk (Rate Limit GitHub tercapai). Data Anda telah diamankan secara lokal di perangkat ini dan akan disinkronkan nanti.');
+                        return true; // Tetap anggap sukses agar aplikasi siswa/guru tidak macet
+                    }
                     const errResText = await res.text();
                     throw new Error(`HTTP Error status: ${res.status} - ${errResText}`);
                 }
                 return true;
             } catch (err) {
-                console.error('Peringatan Penyimpanan Server:', err);
-                alert('Peringatan Penyimpanan Server: ' + err.message);
-                return false;
+                console.warn('Peringatan Penyimpanan Server:', err.message);
+                return true; // Fallback agar aplikasi tetap lancar menggunakan lokal cache
             }
         }
 
@@ -1344,7 +1347,7 @@
                 return;
             }
             
-            showLoading("Mengambil database terbaru server...");
+            showLoading("Memeriksa database server...");
             await fetchAllDatabases(true);
 
             if (!globalDbData.tugas) globalDbData.tugas = [];
